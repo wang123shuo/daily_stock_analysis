@@ -279,6 +279,8 @@ class LLMToolAdapter:
             return config.gemini_temperature
         if model.startswith("anthropic/"):
             return config.anthropic_temperature
+        if model.startswith("minimax/"):
+            return config.minimax_temperature
         return config.openai_temperature
 
     def _convert_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

@@ -39,7 +39,7 @@ class ConfigIssue:
         return self.message
 
 
-_MANAGED_LITELLM_KEY_PROVIDERS = {"gemini", "vertex_ai", "anthropic", "openai", "deepseek"}
+_MANAGED_LITELLM_KEY_PROVIDERS = {"gemini", "vertex_ai", "anthropic", "openai", "deepseek", "minimax"}
 
 
 def _get_litellm_provider(model: str) -> str:
@@ -118,6 +118,7 @@ class Config:
     anthropic_api_keys: List[str] = field(default_factory=list)
     openai_api_keys: List[str] = field(default_factory=list)
     deepseek_api_keys: List[str] = field(default_factory=list)
+    minimax_api_keys: List[str] = field(default_factory=list)
 
     # Legacy single-key fields (kept for backward compatibility; gemini_api_keys[0] when set)
     gemini_api_key: Optional[str] = None
@@ -135,6 +136,12 @@ class Config:
     anthropic_model: str = "claude-3-5-sonnet-20241022"  # Claude model name
     anthropic_temperature: float = 0.7  # Anthropic temperature (0.0-1.0, default 0.7)
     anthropic_max_tokens: int = 8192  # Max tokens for Anthropic responses
+
+    # MiniMax API 配置
+    minimax_api_key: Optional[str] = None
+    minimax_base_url: str = "https://api.minimax.chat/v1"
+    minimax_model: str = "MiniMax-M2.7"
+    minimax_temperature: float = 0.7
 
     # OpenAI 兼容 API（备选，当 Gemini/Anthropic 不可用时使用）
     openai_api_key: Optional[str] = None
@@ -286,6 +293,10 @@ class Config:
     market_review_region: str = "cn"
     # 交易日检查：默认启用，非交易日跳过执行；设为 false 或 --force-run 可强制执行（Issue #373）
     trading_day_check_enabled: bool = True
+
+    # === 飞书每日推送配置 ===
+    feishu_daily_report_enabled: bool = False  # 是否启用飞书每日推送
+    feishu_daily_report_time: str = "18:00"    # 飞书每日推送时间
 
     # === 实时行情增强数据配置 ===
     # 实时行情开关（关闭后使用历史收盘价进行分析）
@@ -629,6 +640,11 @@ class Config:
             anthropic_model=os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022'),
             anthropic_temperature=float(os.getenv('ANTHROPIC_TEMPERATURE', '0.7')),
             anthropic_max_tokens=int(os.getenv('ANTHROPIC_MAX_TOKENS', '8192')),
+            # MiniMax API configuration
+            minimax_api_key=os.getenv('MINIMAX_API_KEY') or os.getenv('MINIMAX_API_KEY'),
+            minimax_base_url=os.getenv('MINIMAX_BASE_URL', 'https://api.minimax.chat/v1'),
+            minimax_model=os.getenv('MINIMAX_MODEL', 'MiniMax-M2.7'),
+            minimax_temperature=float(os.getenv('MINIMAX_TEMPERATURE', '0.7')),
             # AIHubmix is the preferred OpenAI-compatible provider (one key, all models, no VPN required).
             # Within the OpenAI-compatible layer: AIHUBMIX_KEY takes priority over OPENAI_API_KEY.
             # Overall provider fallback order: Gemini > Anthropic > OpenAI-compatible (incl. AIHubmix).
@@ -729,6 +745,9 @@ class Config:
                 os.getenv('MARKET_REVIEW_REGION', 'cn')
             ),
             trading_day_check_enabled=os.getenv('TRADING_DAY_CHECK_ENABLED', 'true').lower() != 'false',
+            # 飞书每日推送
+            feishu_daily_report_enabled=os.getenv('FEISHU_DAILY_REPORT_ENABLED', 'false').lower() == 'true',
+            feishu_daily_report_time=os.getenv('FEISHU_DAILY_REPORT_TIME', '18:00'),
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=int(os.getenv('WEBUI_PORT', '8000')),
@@ -1303,6 +1322,8 @@ def get_api_keys_for_model(model: str, config: Config) -> List[str]:
         return [k for k in config.deepseek_api_keys if k and len(k) >= 8]
     if provider == "openai":
         return [k for k in config.openai_api_keys if k and len(k) >= 8]
+    if provider == "minimax":
+        return [k for k in config.minimax_api_keys if k and len(k) >= 8]
     # Other LiteLLM-native providers – API key resolved from env vars
     return []
 
@@ -1316,6 +1337,11 @@ def extra_litellm_params(model: str, config: Config) -> Dict[str, Any]:
     params: Dict[str, Any] = {}
     # deepseek/ provider: litellm auto-resolves api_base, no manual override needed
     if model.startswith("deepseek/"):
+        return params
+    # minimax/ provider: needs explicit api_base
+    if model.startswith("minimax/"):
+        if config.minimax_base_url:
+            params["api_base"] = config.minimax_base_url
         return params
     if model.startswith("openai/") or "/" not in model:
         if config.openai_base_url:

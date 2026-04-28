@@ -18,4 +18,5 @@ __all__ = [
     "auth",
     "agent",
     "usage",
+    "feishu",
 ]

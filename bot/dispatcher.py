@@ -246,10 +246,15 @@ class CommandDispatcher:
         
         # 2. 解析命令和参数
         cmd_name, args = message.get_command_and_args(self.command_prefix)
-        
+
         if cmd_name is None:
             # 不是命令，检查是否 @了机器人
             if message.mentioned:
+                # 飞书群 @机器人 的场景，直接调用 FeishuChatCommand 处理
+                feishu_chat = self.get_command("feishu_chat")
+                if feishu_chat:
+                    logger.info(f"[Dispatcher] @机器人 触发 FeishuChat, content={message.content[:50]}")
+                    return feishu_chat.execute(message, message.content.split())
                 return BotResponse.text_response(
                     "你好！我是股票分析助手。\n"
                     f"发送 `{self.command_prefix}help` 查看可用命令。"

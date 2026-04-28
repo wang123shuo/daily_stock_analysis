@@ -15,6 +15,7 @@ from bot.commands.market import MarketCommand
 from bot.commands.batch import BatchCommand
 from bot.commands.ask import AskCommand
 from bot.commands.chat import ChatCommand
+from bot.commands.feishu_chat import FeishuChatCommand, FeishuBatchReportCommand
 
 # 所有可用命令（用于自动注册）
 ALL_COMMANDS = [
@@ -25,6 +26,8 @@ ALL_COMMANDS = [
     BatchCommand,
     AskCommand,
     ChatCommand,
+    FeishuChatCommand,
+    FeishuBatchReportCommand,
 ]
 
 __all__ = [
